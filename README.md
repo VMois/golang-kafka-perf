@@ -2,6 +2,8 @@
 
 The project is inspired by The Primeagen's article review - [From $erverless to Elixir](https://www.youtube.com/watch?v=UGG2HMonQ1c). The reviewed article is [here](https://medium.com/coryodaniel/from-erverless-to-elixir-48752db4d7bc). Instead of Elixir, I decide to use Golang, and build a simplified version.
 
+![Approximate diagram of the solution](./golang_kafka_perf_diagram.png)
+
 ## Resources
 
 The list of resource and tools used to build the project:
@@ -12,7 +14,21 @@ The list of resource and tools used to build the project:
 
 ## Development and testing
 
-### CURL with JSON
+### Benchmarking
+
+1. Start Docker Compose:
+
+```bash
+docker-compose up -d
+```
+
+2. Run `benchmark.sh` script from `scripts/`:
+
+```bash
+./benchmark.sh
+```
+
+### CURL
 
 For convenience, here is a CURL command to send a JSON payload to the server:
 
