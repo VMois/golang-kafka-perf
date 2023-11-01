@@ -7,6 +7,7 @@ The project is inspired by The Primeagen's article review - [From $erverless to 
 The list of resource and tools used to build the project:
 
 - [kcat](https://github.com/edenhill/kcat), CLI to query Kafka;
+- [wrk](https://github.com/wg/wrk), for load testing;
 - [Tutorial used to setup Kafka locally via Docker Compose](https://hackernoon.com/setting-up-kafka-on-docker-for-local-development).
 
 ## Development and testing
@@ -15,8 +16,16 @@ The list of resource and tools used to build the project:
 
 For convenience, here is a CURL command to send a JSON payload to the server:
 
+For API gateway:
+
 ```
 curl -X POST -H "Content-Type: application/json" \
     -d '{"type": "red", "client_id": 1}' \
     http://localhost:8080/metrics
+```
+
+For consumer:
+
+```
+curl -X GET http://localhost:8080/statistics
 ```
