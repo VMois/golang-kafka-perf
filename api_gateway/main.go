@@ -3,9 +3,11 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/segmentio/kafka-go"
@@ -19,6 +21,10 @@ type MetricsData struct {
 	Type     string `json:"type" binding:"required"`
 	ClientID string `json:"client_id" binding:"required"`
 }
+
+var red int = 0
+var yellow int = 0
+var green int = 0
 
 func producer(channel chan MetricsData) {
 	kafkaAddress := os.Getenv("KAFKA_ADDRESS")
@@ -36,20 +42,41 @@ func producer(channel chan MetricsData) {
 	}
 
 	defer w.Close()
+	var err error
+	var data []byte
+	const retries = 3
 
 	for metric := range channel {
-		data, err := json.Marshal(metric)
+		data, err = json.Marshal(metric)
 		if err != nil {
 			// TODO: a better way to log errors?
 			fmt.Println(err.Error())
 		}
 
-		err = w.WriteMessages(context.Background(),
-			kafka.Message{Value: data},
-		)
-		if err != nil {
-			// TODO: What to do if error? Should we repeat?
-			fmt.Println("Failed to send message to Kafka: ", err.Error())
+		for i := 0; i < retries; i++ {
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+
+			// attempt to create topic prior to publishing the message
+			err = w.WriteMessages(ctx, kafka.Message{Value: data})
+			if errors.Is(err, kafka.LeaderNotAvailable) || errors.Is(err, context.DeadlineExceeded) {
+				time.Sleep(time.Millisecond * 250)
+				continue
+			}
+
+			if err != nil {
+				fmt.Println(err.Error())
+			}
+
+			switch metric.Type {
+			case "red":
+				red++
+			case "yellow":
+				yellow++
+			case "green":
+				green++
+			}
+			break
 		}
 	}
 }
@@ -84,21 +111,12 @@ func main() {
 		c.Status(http.StatusOK)
 	})
 
-	r.DELETE("/purge", func(c *gin.Context) {
-		kafkaAddress := os.Getenv("KAFKA_ADDRESS")
-		if kafkaAddress == "" {
-			kafkaAddress = "localhost:9093"
-		}
-		conn, err := kafka.Dial("tcp", kafkaAddress)
-		if err != nil {
-			fmt.Println(err.Error())
-		}
-		defer conn.Close()
-
-		err = conn.DeleteTopics(topic)
-		if err != nil {
-			fmt.Println(err.Error())
-		}
+	r.GET("/statistics", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{
+			"red":    red,
+			"green":  green,
+			"yellow": yellow,
+		})
 	})
 
 	r.Run("0.0.0.0:8080")
